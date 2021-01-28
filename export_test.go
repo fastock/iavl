@@ -45,7 +45,6 @@ func setupExportTreeBasic(t require.TestingT) *ImmutableTree {
 }
 
 // setupExportTreeRandom sets up a randomly generated tree.
-// nolint: dupl
 func setupExportTreeRandom(t *testing.T) *ImmutableTree {
 	const (
 		randSeed  = 49872768940 // For deterministic tests
@@ -171,26 +170,23 @@ func TestExporter(t *testing.T) {
 }
 
 func TestExporter_Import(t *testing.T) {
-	testcases := map[string]*ImmutableTree{
-		"empty tree": NewImmutableTree(db.NewMemDB(), 0),
-		"basic tree": setupExportTreeBasic(t),
+	testcases := map[string]struct {
+		tree *ImmutableTree
+	}{
+		"empty tree":  {tree: NewImmutableTree(db.NewMemDB(), 0)},
+		"basic tree":  {tree: setupExportTreeBasic(t)},
+		"sized tree":  {tree: setupExportTreeSized(t, 4096)},
+		"random tree": {tree: setupExportTreeRandom(t)},
 	}
-	if !testing.Short() {
-		testcases["sized tree"] = setupExportTreeSized(t, 4096)
-		testcases["random tree"] = setupExportTreeRandom(t)
-	}
-
-	for desc, tree := range testcases {
-		tree := tree
+	for desc, tc := range testcases {
+		tc := tc // appease scopelint
 		t.Run(desc, func(t *testing.T) {
-			t.Parallel()
-
-			exporter := tree.Export()
+			exporter := tc.tree.Export()
 			defer exporter.Close()
 
 			newTree, err := NewMutableTree(db.NewMemDB(), 0)
 			require.NoError(t, err)
-			importer, err := newTree.Import(tree.Version())
+			importer, err := newTree.Import(tc.tree.Version())
 			require.NoError(t, err)
 			defer importer.Close()
 
@@ -206,12 +202,12 @@ func TestExporter_Import(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			require.Equal(t, tree.Hash(), newTree.Hash(), "Tree hash mismatch")
-			require.Equal(t, tree.Size(), newTree.Size(), "Tree size mismatch")
-			require.Equal(t, tree.Version(), newTree.Version(), "Tree version mismatch")
+			require.Equal(t, tc.tree.Hash(), newTree.Hash(), "Tree hash mismatch")
+			require.Equal(t, tc.tree.Size(), newTree.Size(), "Tree size mismatch")
+			require.Equal(t, tc.tree.Version(), newTree.Version(), "Tree version mismatch")
 
-			tree.Iterate(func(key, value []byte) bool {
-				index, _ := tree.Get(key)
+			tc.tree.Iterate(func(key, value []byte) bool {
+				index, _ := tc.tree.Get(key)
 				newIndex, newValue := newTree.Get(key)
 				require.Equal(t, index, newIndex, "Index mismatch for key %v", key)
 				require.Equal(t, value, newValue, "Value mismatch for key %v", key)

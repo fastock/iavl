@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cosmos/iavl"
+	"github.com/tendermint/iavl"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -79,20 +79,16 @@ func OpenDB(dir string) (dbm.DB, error) {
 func PrintDBStats(db dbm.DB) {
 	count := 0
 	prefix := map[string]int{}
-	itr, err := db.Iterator(nil, nil)
+	iter, err := db.Iterator(nil, nil)
 	if err != nil {
 		panic(err)
 	}
-
-	defer itr.Close()
-	for ; itr.Valid(); itr.Next() {
-		key := string(itr.Key()[:1])
+	for ; iter.Valid(); iter.Next() {
+		key := string(iter.Key()[:1])
 		prefix[key]++
 		count++
 	}
-	if err := itr.Error(); err != nil {
-		panic(err)
-	}
+	iter.Close()
 	fmt.Printf("DB contains %d entries\n", count)
 	for k, v := range prefix {
 		fmt.Printf("  %s: %d\n", k, v)

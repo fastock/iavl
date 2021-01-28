@@ -2,14 +2,13 @@ package iavl
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
 
-	iavlproto "github.com/cosmos/iavl/proto"
+	"github.com/tendermint/tendermint/crypto/tmhash"
 )
 
 type RangeProof struct {
@@ -23,6 +22,7 @@ type RangeProof struct {
 	rootHash     []byte // valid iff rootVerified is true
 	rootVerified bool
 	treeEnd      bool // valid iff rootVerified is true
+
 }
 
 // Keys returns all the keys in the RangeProof.  NOTE: The keys here may
@@ -106,13 +106,10 @@ func (proof *RangeProof) VerifyItem(key, value []byte) error {
 	if i >= len(leaves) || !bytes.Equal(leaves[i].Key, key) {
 		return errors.Wrap(ErrInvalidProof, "leaf key not found in proof")
 	}
-
-	h := sha256.Sum256(value)
-	valueHash := h[:]
+	valueHash := tmhash.Sum(value)
 	if !bytes.Equal(leaves[i].ValueHash, valueHash) {
 		return errors.Wrap(ErrInvalidProof, "leaf value hash not same")
 	}
-
 	return nil
 }
 
@@ -306,65 +303,7 @@ func (proof *RangeProof) _computeRootHash() (rootHash []byte, treeEnd bool, err 
 	return rootHash, treeEnd, nil
 }
 
-// toProto converts the proof to a Protobuf representation, for use in ValueOp and AbsenceOp.
-func (proof *RangeProof) ToProto() *iavlproto.RangeProof {
-	pb := &iavlproto.RangeProof{
-		LeftPath:   make([]*iavlproto.ProofInnerNode, 0, len(proof.LeftPath)),
-		InnerNodes: make([]*iavlproto.PathToLeaf, 0, len(proof.InnerNodes)),
-		Leaves:     make([]*iavlproto.ProofLeafNode, 0, len(proof.Leaves)),
-	}
-	for _, inner := range proof.LeftPath {
-		pb.LeftPath = append(pb.LeftPath, inner.toProto())
-	}
-	for _, path := range proof.InnerNodes {
-		pbPath := make([]*iavlproto.ProofInnerNode, 0, len(path))
-		for _, inner := range path {
-			pbPath = append(pbPath, inner.toProto())
-		}
-		pb.InnerNodes = append(pb.InnerNodes, &iavlproto.PathToLeaf{Inners: pbPath})
-	}
-	for _, leaf := range proof.Leaves {
-		pb.Leaves = append(pb.Leaves, leaf.toProto())
-	}
-
-	return pb
-}
-
-// rangeProofFromProto generates a RangeProof from a Protobuf RangeProof.
-func RangeProofFromProto(pbProof *iavlproto.RangeProof) (RangeProof, error) {
-	proof := RangeProof{}
-
-	for _, pbInner := range pbProof.LeftPath {
-		inner, err := proofInnerNodeFromProto(pbInner)
-		if err != nil {
-			return proof, err
-		}
-		proof.LeftPath = append(proof.LeftPath, inner)
-	}
-
-	for _, pbPath := range pbProof.InnerNodes {
-		var path PathToLeaf // leave as nil unless populated, for Amino compatibility
-		if pbPath != nil {
-			for _, pbInner := range pbPath.Inners {
-				inner, err := proofInnerNodeFromProto(pbInner)
-				if err != nil {
-					return proof, err
-				}
-				path = append(path, inner)
-			}
-		}
-		proof.InnerNodes = append(proof.InnerNodes, path)
-	}
-
-	for _, pbLeaf := range pbProof.Leaves {
-		leaf, err := proofLeafNodeFromProto(pbLeaf)
-		if err != nil {
-			return proof, err
-		}
-		proof.Leaves = append(proof.Leaves, leaf)
-	}
-	return proof, nil
-}
+///////////////////////////////////////////////////////////////////////////////
 
 // keyStart is inclusive and keyEnd is exclusive.
 // If keyStart or keyEnd don't exist, the leaf before keyStart
@@ -398,12 +337,11 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 		keys = append(keys, left.key) // == keyStart
 		values = append(values, left.value)
 	}
-
-	h := sha256.Sum256(left.value)
+	// Either way, add to proof leaves.
 	var leaves = []ProofLeafNode{
 		{
 			Key:       left.key,
-			ValueHash: h[:],
+			ValueHash: tmhash.Sum(left.value),
 			Version:   left.version,
 		},
 	}
@@ -461,30 +399,24 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				allPathToLeafs = append(allPathToLeafs, currentPathToLeaf)
 				// Start a new one to track as we traverse the tree.
 				currentPathToLeaf = PathToLeaf(nil)
-
-				h := sha256.Sum256(node.value)
+				// Append leaf to leaves.
 				leaves = append(leaves, ProofLeafNode{
 					Key:       node.key,
-					ValueHash: h[:],
+					ValueHash: tmhash.Sum(node.value),
 					Version:   node.version,
 				})
-
 				leafCount++
-
 				// Maybe terminate because we found enough leaves.
 				if limit > 0 && limit <= leafCount {
 					return true
 				}
-
 				// Terminate if we've found keyEnd or after.
 				if keyEnd != nil && bytes.Compare(node.key, keyEnd) >= 0 {
 					return true
 				}
-
 				// Value is in range, append to keys and values.
 				keys = append(keys, node.key)
 				values = append(values, node.value)
-
 				// Terminate if we've found keyEnd-1 or after.
 				// We don't want to fetch any leaves for it.
 				if keyEnd != nil && bytes.Compare(cpIncr(node.key), keyEnd) >= 0 {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cosmos/iavl"
+	"github.com/tendermint/iavl"
 	db "github.com/tendermint/tm-db"
 )
 
@@ -241,13 +241,9 @@ func runBenchmarks(b *testing.B, benchmarks []benchmark) {
 		}()
 
 		// note that "" leads to nil backing db!
-		var (
-			d   db.DB
-			err error
-		)
+		var d db.DB
 		if bb.dbType != "nodb" {
-			d, err = db.NewDB("test", bb.dbType, dirName)
-			require.NoError(b, err)
+			d = db.NewDB("test", bb.dbType, dirName)
 			defer d.Close()
 		}
 		b.Run(prefix, func(sub *testing.B) {

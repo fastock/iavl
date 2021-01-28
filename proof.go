@@ -2,14 +2,13 @@ package iavl
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
-	"math"
 
 	"github.com/pkg/errors"
 
-	cmn "github.com/cosmos/iavl/common"
-	iavlproto "github.com/cosmos/iavl/proto"
+	amino "github.com/tendermint/go-amino"
+	cmn "github.com/tendermint/iavl/common"
+	"github.com/tendermint/tendermint/crypto/tmhash"
 )
 
 var (
@@ -54,30 +53,30 @@ func (pin ProofInnerNode) stringIndented(indent string) string {
 }
 
 func (pin ProofInnerNode) Hash(childHash []byte) []byte {
-	hasher := sha256.New()
+	hasher := tmhash.New()
 	buf := new(bytes.Buffer)
 
-	err := encodeVarint(buf, int64(pin.Height))
+	err := amino.EncodeInt8(buf, pin.Height)
 	if err == nil {
-		err = encodeVarint(buf, pin.Size)
+		err = amino.EncodeVarint(buf, pin.Size)
 	}
 	if err == nil {
-		err = encodeVarint(buf, pin.Version)
+		err = amino.EncodeVarint(buf, pin.Version)
 	}
 
 	if len(pin.Left) == 0 {
 		if err == nil {
-			err = encodeBytes(buf, childHash)
+			err = amino.EncodeByteSlice(buf, childHash)
 		}
 		if err == nil {
-			err = encodeBytes(buf, pin.Right)
+			err = amino.EncodeByteSlice(buf, pin.Right)
 		}
 	} else {
 		if err == nil {
-			err = encodeBytes(buf, pin.Left)
+			err = amino.EncodeByteSlice(buf, pin.Left)
 		}
 		if err == nil {
-			err = encodeBytes(buf, childHash)
+			err = amino.EncodeByteSlice(buf, childHash)
 		}
 	}
 	if err != nil {
@@ -89,34 +88,6 @@ func (pin ProofInnerNode) Hash(childHash []byte) []byte {
 		panic(err)
 	}
 	return hasher.Sum(nil)
-}
-
-// toProto converts the inner node proof to Protobuf, for use in ProofOps.
-func (pin ProofInnerNode) toProto() *iavlproto.ProofInnerNode {
-	return &iavlproto.ProofInnerNode{
-		Height:  int32(pin.Height),
-		Size_:   pin.Size,
-		Version: pin.Version,
-		Left:    pin.Left,
-		Right:   pin.Right,
-	}
-}
-
-// proofInnerNodeFromProto converts a Protobuf ProofInnerNode to a ProofInnerNode.
-func proofInnerNodeFromProto(pbInner *iavlproto.ProofInnerNode) (ProofInnerNode, error) {
-	if pbInner == nil {
-		return ProofInnerNode{}, errors.New("inner node cannot be nil")
-	}
-	if pbInner.Height > math.MaxInt8 || pbInner.Height < math.MinInt8 {
-		return ProofInnerNode{}, fmt.Errorf("height must fit inside an int8, got %v", pbInner.Height)
-	}
-	return ProofInnerNode{
-		Height:  int8(pbInner.Height),
-		Size:    pbInner.Size_,
-		Version: pbInner.Version,
-		Left:    pbInner.Left,
-		Right:   pbInner.Right,
-	}, nil
 }
 
 //----------------------------------------
@@ -144,21 +115,21 @@ func (pln ProofLeafNode) stringIndented(indent string) string {
 }
 
 func (pln ProofLeafNode) Hash() []byte {
-	hasher := sha256.New()
+	hasher := tmhash.New()
 	buf := new(bytes.Buffer)
 
-	err := encodeVarint(buf, 0)
+	err := amino.EncodeInt8(buf, 0)
 	if err == nil {
-		err = encodeVarint(buf, 1)
+		err = amino.EncodeVarint(buf, 1)
 	}
 	if err == nil {
-		err = encodeVarint(buf, pln.Version)
+		err = amino.EncodeVarint(buf, pln.Version)
 	}
 	if err == nil {
-		err = encodeBytes(buf, pln.Key)
+		err = amino.EncodeByteSlice(buf, pln.Key)
 	}
 	if err == nil {
-		err = encodeBytes(buf, pln.ValueHash)
+		err = amino.EncodeByteSlice(buf, pln.ValueHash)
 	}
 	if err != nil {
 		panic(fmt.Sprintf("Failed to hash ProofLeafNode: %v", err))
@@ -170,27 +141,6 @@ func (pln ProofLeafNode) Hash() []byte {
 	}
 
 	return hasher.Sum(nil)
-}
-
-// toProto converts the leaf node proof to Protobuf, for use in ProofOps.
-func (pln ProofLeafNode) toProto() *iavlproto.ProofLeafNode {
-	return &iavlproto.ProofLeafNode{
-		Key:       pln.Key,
-		ValueHash: pln.ValueHash,
-		Version:   pln.Version,
-	}
-}
-
-// proofLeafNodeFromProto converts a Protobuf ProofLeadNode to a ProofLeafNode.
-func proofLeafNodeFromProto(pbLeaf *iavlproto.ProofLeafNode) (ProofLeafNode, error) {
-	if pbLeaf == nil {
-		return ProofLeafNode{}, errors.New("leaf node cannot be nil")
-	}
-	return ProofLeafNode{
-		Key:       pbLeaf.Key,
-		ValueHash: pbLeaf.ValueHash,
-		Version:   pbLeaf.Version,
-	}, nil
 }
 
 //----------------------------------------

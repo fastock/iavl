@@ -1,81 +1,5 @@
 # Changelog
 
-## 0.15.3 (December 21, 2020)
-
-Special thanks to external contributors on this release: @odeke-em
-
-### Improvements
-
-- [\#352](https://github.com/cosmos/iavl/pull/352) Reuse buffer to improve performance of `GetMembershipProof()` and `GetNonMembershipProof()`.
-
-## 0.15.2 (December 14, 2020)
-
-Special thanks to external contributors on this release: @odeke-em
-
-### Bug Fixes
-
-- [\#347](https://github.com/cosmos/iavl/pull/347) Fix another integer overflow in `decodeBytes()` that can cause panics for certain inputs. The `ValueOp` and `AbsenceOp` proof decoders are vulnerable to this via malicious inputs since 0.15.0.
-
-- [\#349](https://github.com/cosmos/iavl/pull/349) Fix spurious blank lines in `PathToLeaf.String()`.
-
-## 0.15.1 (December 13, 2020)
-
-Special thanks to external contributors on this release: @odeke-em
-
-### Bug Fixes
-
-- [\#340](https://github.com/cosmos/iavl/pull/340) Fix integer overflow in `decodeBytes()` that can cause panics on 64-bit systems and out-of-memory issues on 32-bit systems. The `ValueOp` and `AbsenceOp` proof decoders are vulnerable to this via malicious inputs. The bug was introduced in 0.15.0.
-
-## 0.15.0 (November 23, 2020)
-
-The IAVL project has moved from https://github.com/tendermint/iavl to
-https://github.com/cosmos/iavl. This changes the module import path, which is now
-`github.com/cosmos/iavl`.
-
-Users upgrading from 0.13 should read important upgrade information in the 0.14.0 release below.
-
-### Breaking Changes
-
-- [\#285](https://github.com/cosmos/iavl/pull/285) The module path has changed from
-  `github.com/tendermint/iavl` to `github.com/cosmos/iavl`.
-
-- [\#304](https://github.com/cosmos/iavl/pull/304) Empty trees now return hashes rather than `nil` 
-  from e.g. `Hash()`, `WorkingHash()`, and `SaveVersion()`, for conformance with RFC-6962.
-
-- [\#317](https://github.com/cosmos/iavl/pull/317) `LoadVersion()` and `LazyLoadVersion()` now 
-  error if called with a positive version number on an empty tree.
-
-### Improvements
-
-- [\#296](https://github.com/cosmos/iavl/pull/296) Add `iavlserver`, a gRPC/REST API server.
-
-- [\#276](https://github.com/cosmos/iavl/pull/276/files) Introduced
-  `ImmutableTree.GetMembershipProof()` and `GetNonMembershipProof()` to return ics23 ExistenceProof 
-  and NonExistenceProof respectively.
-
-- [\#265](https://github.com/cosmos/iavl/pull/265) Encoding of tree nodes and proofs is now done 
-  using the Go stdlib and Protobuf instead of Amino. The binary encoding is identical.
-
-### Bug Fixes
-
-- [\#309](https://github.com/cosmos/iavl/pull/309) Allow `SaveVersion()` for old, empty versions as 
-  long as the new version is identical.
-
-## 0.14.3 (November 23, 2020)
-
-Special thanks to external contributors on this release: @klim0v
-
-### Bug Fixes
-
-- [\#324](https://github.com/cosmos/iavl/pull/324) Fix `DeleteVersions` not properly removing
-  orphans, and add `DeleteVersionsRange` to delete a range.
-
-## 0.14.2 (October 12, 2020)
-
-### Bug Fixes
-
-- [\#318](https://github.com/cosmos/iavl/pull/318) Fix constant overflow when compiling for 32bit machines.
-
 ## 0.14.1 (October 9, 2020)
 
 ### Improvements
@@ -120,6 +44,27 @@ Make sure to follow these instructions when upgrading, to avoid data corruption:
 
 Users wishing to prune historical versions can do so via `MutableTree.DeleteVersion()`.
 
+There are no changes from 0.14.0-rc2.
+
+## 0.14.0-rc2 (June 26, 2020)
+
+See important upgrade information for 0.14.0 above.
+
+### Improvements
+
+- [\#282](https://github.com/cosmos/iavl/pull/282) Add `Repair013Orphans()` to repair faulty 
+  orphans in a database last written to by IAVL 0.13.x
+
+### Bug Fixes
+
+- [\#281](https://github.com/cosmos/iavl/pull/281) Remove unnecessary Protobuf dependencies
+
+## 0.14.0-rc1 (June 24, 2020)
+
+See important upgrade information for 0.14.0 above.
+
+Special thanks to external contributors on this release: @ridenaio
+
 ### Breaking Changes
 
 - [\#274](https://github.com/cosmos/iavl/pull/274) Remove pruning options `KeepEvery` and 
@@ -127,21 +72,16 @@ Users wishing to prune historical versions can do so via `MutableTree.DeleteVers
 
 ### Improvements
 
-- [\#282](https://github.com/cosmos/iavl/pull/282) Add `Repair013Orphans()` to repair faulty 
-  orphans in a database last written to by IAVL 0.13.x
-
 - [\#271](https://github.com/cosmos/iavl/pull/271) Add `MutableTree.DeleteVersions()` for deleting 
-  multiple versions.
+  multiple versions
 
 - [\#235](https://github.com/cosmos/iavl/pull/235) Reduce `ImmutableTree.Export()` buffer size from 
-  64 to 32 nodes.
+  64 to 32 nodes
 
 ### Bug Fixes
 
-- [\#281](https://github.com/cosmos/iavl/pull/281) Remove unnecessary Protobuf dependencies.
-
 - [\#275](https://github.com/cosmos/iavl/pull/275) Fix data corruption with 
-  `LoadVersionForOverwriting`.
+  `LoadVersionForOverwriting`
 
 ## 0.13.3 (April 5, 2020)
 

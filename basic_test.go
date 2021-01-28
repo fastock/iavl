@@ -3,7 +3,6 @@ package iavl
 
 import (
 	"bytes"
-	"encoding/hex"
 	mrand "math/rand"
 	"sort"
 	"testing"
@@ -150,7 +149,7 @@ func TestUnit(t *testing.T) {
 		tree.root = origNode
 	}
 
-	// Test Set cases:
+	//////// Test Set cases:
 
 	// Case 1:
 	t1 := T(N(4, 20))
@@ -173,7 +172,7 @@ func TestUnit(t *testing.T) {
 	expectSet(t4, 8, "(((1 2) (5 6)) ((7 8) 9))", 5)
 	expectSet(t4, 10, "(((1 2) (5 6)) (7 (9 10)))", 5)
 
-	// Test Remove cases:
+	//////// Test Remove cases:
 
 	t10 := T(N(N(1, 2), 3))
 
@@ -430,7 +429,7 @@ func TestTreeProof(t *testing.T) {
 	db := db.NewMemDB()
 	tree, err := NewMutableTree(db, 100)
 	require.NoError(t, err)
-	assert.Equal(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", hex.EncodeToString(tree.Hash()))
+	assert.Equal(t, tree.Hash(), []byte(nil))
 
 	// should get false for proof with nil root
 	value, proof, err := tree.GetWithProof([]byte("foo"))

@@ -2,23 +2,22 @@ GOTOOLS := github.com/golangci/golangci-lint/cmd/golangci-lint
 VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
-DOCKER_BUF := docker run -v $(shell pwd):/workspace --workdir /workspace bufbuild/buf
-DOCKER := $(shell which docker)
-HTTPS_GIT := https://github.com/cosmos/iavl.git
 
 PDFFLAGS := -pdf --nodefraction=0.1
+
 CMDFLAGS := -ldflags -X TENDERMINT_IAVL_COLORS_ON=on 
-LDFLAGS := -ldflags "-X github.com/cosmos/iavl.Version=$(VERSION) -X github.com/cosmos/iavl.Commit=$(COMMIT) -X github.com/cosmos/iavl.Branch=$(BRANCH)"
+
+LDFLAGS := -ldflags "-X github.com/tendermint/iavl.Version=$(VERSION) -X github.com/tendermint/iavl.Commit=$(COMMIT) -X github.com/tendermint/iavl.Branch=$(BRANCH)"
 
 all: lint test install
+
+
 
 install:
 ifeq ($(COLORS_ON),)
 	go install ./cmd/iaviewer
-	go install ./cmd/iavlserver
 else
 	go install $(CMDFLAGS) ./cmd/iaviewer
-	go install $(CMDFLAGS) ./cmd/iavlserver
 endif
 .PHONY: install
 
@@ -85,43 +84,3 @@ exploremem:
 delve:
 	dlv test ./benchmarks -- -test.bench=.
 .PHONY: delve
-
-all: tools
-.PHONY: all
-
-tools: protobuf
-.PHONY: tools
-
-check: check_tools
-.PHONY: check
-
-check_tools:
-	@# https://stackoverflow.com/a/25668869
-	@echo "Found tools: $(foreach tool,$(notdir $(GOTOOLS)),\
-        $(if $(shell which $(tool)),$(tool),$(error "No $(tool) in PATH")))"
-.PHONY: check_tools
-
-tools-clean:
-	rm -f $(CERTSTRAP) $(PROTOBUF) $(GOX) $(GOODMAN)
-	rm -rf /usr/local/include/google/protobuf
-	rm -f /usr/local/bin/protoc
-.PHONY: tooks-clean
-
-###
-# Non Go tools
-###
-
-.PHONY: lint test tools install delve exploremem explorecpu profile fullbench bench proto-gen proto-lint proto-check-breaking
-
-proto-lint:
-	@$(DOCKER_BUF) check lint --error-format=json
-.PHONY: proto-lint
-
-proto-check-breaking:
-	@$(DOCKER_BUF) check breaking --against-input $(HTTPS_GIT)#branch=master
-.PHONY: proto-check-breaking
-
-proto-gen:
-	@echo "Generating Protobuf files"
-	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:master sh scripts/protocgen.sh
-.PHONY: proto-gen-d

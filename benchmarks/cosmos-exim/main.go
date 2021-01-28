@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cosmos/iavl"
+	"github.com/tendermint/iavl"
 	tmdb "github.com/tendermint/tm-db"
 )
 
@@ -87,10 +87,7 @@ func run(dbPath string) error {
 
 // runExport runs an export benchmark and returns a map of store names/export nodes
 func runExport(dbPath string) (int64, map[string][]*iavl.ExportNode, error) {
-	ldb, err := tmdb.NewDB("application", tmdb.GoLevelDBBackend, dbPath)
-	if err != nil {
-		return 0, nil, err
-	}
+	ldb := tmdb.NewDB("application", tmdb.GoLevelDBBackend, dbPath)
 	tree, err := iavl.NewMutableTree(tmdb.NewPrefixDB(ldb, []byte("s/k:main/")), 0)
 	if err != nil {
 		return 0, nil, err
@@ -167,10 +164,7 @@ func runImport(version int64, exports map[string][]*iavl.ExportNode) error {
 		start := time.Now()
 		stats := Stats{}
 
-		newDB, err := tmdb.NewDB(name, tmdb.GoLevelDBBackend, tempdir)
-		if err != nil {
-			return err
-		}
+		newDB := tmdb.NewDB(name, tmdb.GoLevelDBBackend, tempdir)
 		newTree, err := iavl.NewMutableTree(newDB, 0)
 		if err != nil {
 			return err

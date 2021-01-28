@@ -2,7 +2,6 @@ package iavl
 
 import (
 	"bytes"
-	"encoding/hex"
 	"math/rand"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNode_encodedSize(t *testing.T) {
+func TestNode_aminoSize(t *testing.T) {
 	node := &Node{
 		key:       randBytes(10),
 		value:     randBytes(10),
@@ -26,61 +25,11 @@ func TestNode_encodedSize(t *testing.T) {
 	}
 
 	// leaf node
-	require.Equal(t, 26, node.encodedSize())
+	require.Equal(t, 26, node.aminoSize())
 
 	// non-leaf node
 	node.height = 1
-	require.Equal(t, 57, node.encodedSize())
-}
-
-func TestNode_encode_decode(t *testing.T) {
-	testcases := map[string]struct {
-		node        *Node
-		expectHex   string
-		expectError bool
-	}{
-		"nil":   {nil, "", true},
-		"empty": {&Node{}, "0000000000", false},
-		"inner": {&Node{
-			height:    3,
-			version:   2,
-			size:      7,
-			key:       []byte("key"),
-			leftHash:  []byte{0x70, 0x80, 0x90, 0xa0},
-			rightHash: []byte{0x10, 0x20, 0x30, 0x40},
-		}, "060e04036b657904708090a00410203040", false},
-		"leaf": {&Node{
-			height:  0,
-			version: 3,
-			size:    1,
-			key:     []byte("key"),
-			value:   []byte("value"),
-		}, "000206036b65790576616c7565", false},
-	}
-	for name, tc := range testcases {
-		tc := tc
-		t.Run(name, func(t *testing.T) {
-			var buf bytes.Buffer
-			err := tc.node.writeBytes(&buf)
-			if tc.expectError {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tc.expectHex, hex.EncodeToString(buf.Bytes()))
-
-			node, err := MakeNode(buf.Bytes())
-			require.NoError(t, err)
-			// since key and value is always decoded to []byte{} we augment the expected struct here
-			if tc.node.key == nil {
-				tc.node.key = []byte{}
-			}
-			if tc.node.value == nil && tc.node.height == 0 {
-				tc.node.value = []byte{}
-			}
-			require.Equal(t, tc.node, node)
-		})
-	}
+	require.Equal(t, 57, node.aminoSize())
 }
 
 func TestNode_validate(t *testing.T) {
@@ -131,7 +80,7 @@ func TestNode_validate(t *testing.T) {
 	}
 }
 
-func BenchmarkNode_encodedSize(b *testing.B) {
+func BenchmarkNode_aminoSize(b *testing.B) {
 	node := &Node{
 		key:       randBytes(25),
 		value:     randBytes(100),
@@ -144,7 +93,7 @@ func BenchmarkNode_encodedSize(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		node.encodedSize()
+		node.aminoSize()
 	}
 }
 
@@ -171,7 +120,7 @@ func BenchmarkNode_WriteBytes(b *testing.B) {
 		sub.ReportAllocs()
 		for i := 0; i < sub.N; i++ {
 			var buf bytes.Buffer
-			buf.Grow(node.encodedSize())
+			buf.Grow(node.aminoSize())
 			_ = node.writeBytes(&buf)
 		}
 	})

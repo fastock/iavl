@@ -2,7 +2,6 @@ package iavl
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"sort"
 
@@ -75,7 +74,10 @@ func (tree *MutableTree) AvailableVersions() []int {
 // Hash returns the hash of the latest saved version of the tree, as returned
 // by SaveVersion. If no versions have been saved, Hash returns nil.
 func (tree *MutableTree) Hash() []byte {
-	return tree.lastSaved.Hash()
+	if tree.version > 0 {
+		return tree.lastSaved.Hash()
+	}
+	return nil
 }
 
 // WorkingHash returns the hash of the current working tree.
@@ -284,10 +286,7 @@ func (tree *MutableTree) LazyLoadVersion(targetVersion int64) (int64, error) {
 
 	// no versions have been saved if the latest version is non-positive
 	if latestVersion <= 0 {
-		if targetVersion <= 0 {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("no versions found while trying to load %v", targetVersion)
+		return 0, nil
 	}
 
 	// default to the latest version if the targeted version is non-positive
@@ -326,10 +325,7 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 	}
 
 	if len(roots) == 0 {
-		if targetVersion <= 0 {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("no versions found while trying to load %v", targetVersion)
+		return 0, nil
 	}
 
 	firstVersion := int64(0)
@@ -453,7 +449,7 @@ func (tree *MutableTree) GetVersioned(key []byte, version int64) (
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	version := tree.version + 1
 	if version == 1 && tree.ndb.opts.InitialVersion > 0 {
-		version = int64(tree.ndb.opts.InitialVersion)
+		version = int64(tree.ndb.opts.InitialVersion) + 1
 	}
 
 	if tree.versions[version] {
@@ -462,12 +458,6 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 		existingHash, err := tree.ndb.getRoot(version)
 		if err != nil {
 			return nil, version, err
-		}
-
-		// If the existing root hash is empty (because the tree is empty), then we need to
-		// compare with the hash of an empty input which is what `WorkingHash()` returns.
-		if len(existingHash) == 0 {
-			existingHash = sha256.New().Sum(nil)
 		}
 
 		var newHash = tree.WorkingHash()
@@ -516,7 +506,7 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 }
 
 func (tree *MutableTree) deleteVersion(version int64) error {
-	if version <= 0 {
+	if version == 0 {
 		return errors.New("version must be greater than 0")
 	}
 	if version == tree.version {
@@ -540,51 +530,23 @@ func (tree *MutableTree) SetInitialVersion(version uint64) {
 	tree.ndb.opts.InitialVersion = version
 }
 
-// DeleteVersions deletes a series of versions from the MutableTree.
-// Deprecated: please use DeleteVersionsRange instead.
+// DeleteVersions deletes a series of versions from the MutableTree. An error
+// is returned if any single version is invalid or the delete fails. All writes
+// happen in a single batch with a single commit.
 func (tree *MutableTree) DeleteVersions(versions ...int64) error {
 	debug("DELETING VERSIONS: %v\n", versions)
 
-	if len(versions) == 0 {
-		return nil
-	}
-
-	sort.Slice(versions, func(i, j int) bool {
-		return versions[i] < versions[j]
-	})
-
-	// Find ordered data and delete by interval
-	intervals := map[int64]int64{}
-	var fromVersion int64
 	for _, version := range versions {
-		if version-fromVersion != intervals[fromVersion] {
-			fromVersion = version
-		}
-		intervals[fromVersion]++
-	}
-
-	for fromVersion, sortedBatchSize := range intervals {
-		if err := tree.DeleteVersionsRange(fromVersion, fromVersion+sortedBatchSize); err != nil {
+		if err := tree.deleteVersion(version); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-// DeleteVersionsRange removes versions from an interval from the MutableTree (not inclusive).
-// An error is returned if any single version has active readers.
-// All writes happen in a single batch with a single commit.
-func (tree *MutableTree) DeleteVersionsRange(fromVersion, toVersion int64) error {
-	if err := tree.ndb.DeleteVersionsRange(fromVersion, toVersion); err != nil {
-		return err
 	}
 
 	if err := tree.ndb.Commit(); err != nil {
 		return err
 	}
 
-	for version := fromVersion; version < toVersion; version++ {
+	for _, version := range versions {
 		delete(tree.versions, version)
 	}
 

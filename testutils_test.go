@@ -9,8 +9,9 @@ import (
 
 	mrand "math/rand"
 
-	cmn "github.com/cosmos/iavl/common"
 	"github.com/stretchr/testify/require"
+	amino "github.com/tendermint/go-amino"
+	cmn "github.com/tendermint/iavl/common"
 	db "github.com/tendermint/tm-db"
 )
 
@@ -20,15 +21,12 @@ func randstr(length int) string {
 
 func i2b(i int) []byte {
 	buf := new(bytes.Buffer)
-	encodeVarint(buf, int64(i))
+	amino.EncodeInt32(buf, int32(i))
 	return buf.Bytes()
 }
 
 func b2i(bz []byte) int {
-	i, _, err := decodeVarint(bz)
-	if err != nil {
-		panic(err)
-	}
+	i, _, _ := amino.DecodeInt32(bz)
 	return int(i)
 }
 
@@ -115,8 +113,7 @@ func expectTraverse(t *testing.T, trav traverser, start, end string, count int) 
 }
 
 func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
-	db, err := db.NewDB("test", db.MemDBBackend, "")
-	require.NoError(b, err)
+	db := db.NewDB("test", db.MemDBBackend, "")
 	benchmarkImmutableAvlTreeWithDB(b, db)
 }
 

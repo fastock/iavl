@@ -125,10 +125,7 @@ func (i *Importer) Add(exportNode *ExportNode) error {
 		return err
 	}
 
-	if err = i.batch.Set(i.tree.ndb.nodeKey(node.hash), buf.Bytes()); err != nil {
-		return err
-	}
-
+	i.batch.Set(i.tree.ndb.nodeKey(node.hash), buf.Bytes())
 	i.batchSize++
 	if i.batchSize >= maxBatchSize {
 		err = i.batch.Write()
@@ -162,13 +159,9 @@ func (i *Importer) Commit() error {
 
 	switch len(i.stack) {
 	case 0:
-		if err := i.batch.Set(i.tree.ndb.rootKey(i.version), []byte{}); err != nil {
-			panic(err)
-		}
+		i.batch.Set(i.tree.ndb.rootKey(i.version), []byte{})
 	case 1:
-		if err := i.batch.Set(i.tree.ndb.rootKey(i.version), i.stack[0].hash); err != nil {
-			panic(err)
-		}
+		i.batch.Set(i.tree.ndb.rootKey(i.version), i.stack[0].hash)
 	default:
 		return errors.Errorf("invalid node structure, found stack size %v when committing",
 			len(i.stack))
